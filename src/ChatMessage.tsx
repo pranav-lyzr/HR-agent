@@ -1,8 +1,6 @@
 import React from 'react';
-// import { UserCircle, Clock } from "lucide-react";
 import { format } from 'date-fns';
 import ReactMarkdown from "react-markdown";
-
 
 type ChatMessageProps = {
   message: string;
@@ -12,6 +10,20 @@ type ChatMessageProps = {
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, isUser, timestamp }) => {
   const formattedTime = format(timestamp, 'HH:mm');
+  
+  // Pre-process the message to replace literal '\n' strings with actual newlines
+  // and handle Unicode escape sequences
+  const processMessage = (text: string) => {
+    // Replace literal '\n' with actual newline characters
+    let processedText = text.replace(/\\n/g, '\n');
+    
+    // Handle Unicode escape sequences like \u20b9 (rupee symbol)
+    processedText = processedText.replace(/\\u([0-9a-fA-F]{4})/g, (code) => {
+      return String.fromCharCode(parseInt(code, 16));
+    });
+    
+    return processedText;
+  };
 
   return (
     <div
@@ -26,13 +38,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, isUser, timestamp })
       >
         <div className="flex flex-col w-full">
           <div className="flex items-start">
-            {/* {!isUser && (
-              <div className="flex-shrink-0 mr-3">
-                <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center text-white">
-                  <span className="text-sm font-bold">AI</span>
-                </div>
-              </div>
-            )} */}
             <div className="flex-1">
             {!isUser ? (
                 <div className="markdown-content text-sm">
@@ -62,27 +67,20 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, isUser, timestamp })
                       ),
                       code: ({ node, ...props }) => <code className="bg-gray-200 px-1 rounded" {...props} />,
                       pre: ({ node, ...props }) => <pre className="bg-gray-200 p-2 rounded my-2 overflow-x-auto" {...props} />,
+                      br: ({ node, ...props }) => <br className="my-1" {...props} />,
                     }}
                   >
-                    {message}
+                    {processMessage(message)}
                   </ReactMarkdown>
                 </div>
               ) : (
-                <p className="text-sm">{message}</p>
+                <p className="text-sm whitespace-pre-line">{processMessage(message)}</p>
               )}
             </div>
-            {/* {isUser && (
-              <div className="flex-shrink-0 ml-3">
-                <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                  <UserCircle className="w-6 h-6 text-gray-500" />
-                </div>
-              </div>
-            )} */}
           </div>
           <div className={`flex items-center text-xs mt-2 ${
             isUser ? "justify-end text-purple-200" : "justify-start text-gray-400"
           }`}>
-            {/* <Clock className="w-3 h-3 mr-1" /> */}
             <span>{formattedTime}</span>
           </div>
         </div>
