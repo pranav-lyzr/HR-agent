@@ -68,6 +68,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, isUser, timestamp })
                       code: ({ node, ...props }) => <code className="bg-gray-200 px-1 rounded" {...props} />,
                       pre: ({ node, ...props }) => <pre className="bg-gray-200 p-2 rounded my-2 overflow-x-auto" {...props} />,
                       br: ({ node, ...props }) => <br className="my-1" {...props} />,
+                      a: ({ node, ...props }) => (
+                        <a
+                          className="text-purple-600 underline hover:text-purple-800"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          {...props}
+                        />
+                      ),
                     }}
                   >
                     {processMessage(message)}
