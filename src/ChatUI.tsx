@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
 import logo from './assets/main logo.png';
+import { v4 as uuidv4 } from 'uuid';
 
 type Message = {
   text: string;
@@ -13,7 +14,13 @@ type Message = {
 const ChatUI: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [sessionId, setSessionId] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const newSessionId = uuidv4();
+    setSessionId(newSessionId);
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
@@ -23,6 +30,7 @@ const ChatUI: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Non-streaming API version (active)
   const handleSendMessage = async (message: string) => {
     const newUserMessage = {
       text: message,
@@ -30,7 +38,77 @@ const ChatUI: React.FC = () => {
       timestamp: new Date(),
     };
     setMessages((prev) => [...prev, newUserMessage]);
-    
+
+    // Set loading state
+    setIsStreaming(true);
+    setMessages((prev) => [
+      ...prev,
+      { text: '', isUser: false, timestamp: new Date(), isLoading: true },
+    ]);
+
+    try {
+      console.log('session ID', sessionId);
+      const response = await fetch('https://agent-prod.studio.lyzr.ai/v3/inference/chat/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': 'sk-default-yStV4gbpjadbQSw4i7QhoOLRwAs5dEcl',
+        },
+        body: JSON.stringify({
+          user_id: 'pranav@lyzr.ai',
+          agent_id: '67c967987b4f905b3a6b86b9',
+          session_id: sessionId,
+          message: message,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+
+      const data = await response.json(); // Parse the JSON response
+      const botMessage = data.response || 'No response received';
+
+      // Replace loading message with the actual response
+      setMessages((prev) => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1] = {
+          text: botMessage,
+          isUser: false,
+          timestamp: new Date(),
+          isLoading: false,
+        };
+        return newMessages;
+      });
+
+      // Reset streaming/loading state
+      setIsStreaming(false);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      setMessages((prev) => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1] = {
+          text: 'Sorry, there was an error processing your request. Please try again.',
+          isUser: false,
+          timestamp: new Date(),
+          isLoading: false,
+        };
+        return newMessages;
+      });
+      setIsStreaming(false);
+    }
+  };
+
+  /*
+  // Streaming API version (commented out)
+  const handleSendMessage = async (message: string) => {
+    const newUserMessage = {
+      text: message,
+      isUser: true,
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, newUserMessage]);
+
     // Set streaming to true and add a loading message
     setIsStreaming(true);
     setMessages((prev) => [
@@ -39,16 +117,17 @@ const ChatUI: React.FC = () => {
     ]);
 
     try {
-      const response = await fetch('https://agent-prod.studio.lyzr.ai/v3/inference/stream/', {
+      console.log("session ID", sessionId);
+      const response = await fetch('https://agent-prod.studio.lyzr.ai/v3/inference/chat/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-api-key': 'sk-default-yStV4gbpjadbQSw4i7QhoOLRwAs5dEcl',
         },
         body: JSON.stringify({
-          user_id: "pranav@lyzr.ai",
-          agent_id: "67c967987b4f905b3a6b86b9",
-          session_id: "67c967987b4f905b3a6b86b9",
+          user_id: 'pranav@lyzr.ai',
+          agent_id: '67c967987b4f905b3a6b86b9',
+          session_id: sessionId,
           message: message,
         }),
       });
@@ -64,11 +143,11 @@ const ChatUI: React.FC = () => {
         // Replace loading message with an actual response message
         setMessages((prev) => {
           const newMessages = [...prev];
-          newMessages[newMessages.length - 1] = { 
-            text: '', 
-            isUser: false, 
+          newMessages[newMessages.length - 1] = {
+            text: '',
+            isUser: false,
             timestamp: new Date(),
-            isLoading: false 
+            isLoading: false,
           };
           return newMessages;
         });
@@ -99,7 +178,7 @@ const ChatUI: React.FC = () => {
             }
           }
         }
-        
+
         // Streaming is complete
         setIsStreaming(false);
       } else {
@@ -108,10 +187,9 @@ const ChatUI: React.FC = () => {
     } catch (error) {
       console.error('Error sending message:', error);
       setMessages((prev) => {
-        // Replace the loading message with an error message
         const newMessages = [...prev];
         newMessages[newMessages.length - 1] = {
-          text: "Sorry, there was an error processing your request. Please try again.",
+          text: 'Sorry, there was an error processing your request. Please try again.',
           isUser: false,
           timestamp: new Date(),
           isLoading: false,
@@ -121,6 +199,7 @@ const ChatUI: React.FC = () => {
       setIsStreaming(false);
     }
   };
+  */
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -167,12 +246,9 @@ const ChatUI: React.FC = () => {
               </div>
             ) : (
               <>
-                {messages.map((message, index) => (
+                {messages.map((message, index) =>
                   message.isLoading ? (
                     <div key={index} className="flex items-start mb-4">
-                      {/* <div className="flex-shrink-0 bg-purple-100 rounded-full w-8 h-8 flex items-center justify-center mr-3">
-                        <span className="text-purple-500 text-sm font-bold">AI</span>
-                      </div> */}
                       <div className="bg-gray-100 rounded-lg py-2 px-4 max-w-[80%]">
                         <div className="flex items-center space-x-2">
                           <div className="h-4 w-4 rounded-full bg-purple-500 animate-pulse"></div>
@@ -189,7 +265,7 @@ const ChatUI: React.FC = () => {
                       timestamp={message.timestamp}
                     />
                   )
-                ))}
+                )}
                 <div ref={messagesEndRef} />
               </>
             )}
